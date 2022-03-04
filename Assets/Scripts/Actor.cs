@@ -1,21 +1,40 @@
-﻿using System.Collections;
-using System.ComponentModel;
+﻿using System;
+using System.Collections;
 using UnityEngine;
 
 public class Actor : MonoBehaviour
 {
       [SerializeField] private bool isFriendly;
       [SerializeField] private float moveSpeed;
+      [SerializeField] private int maxHealth;
+      [SerializeField] private int initiative;
       [SerializeField] private WeaponObject weapon;
+      [SerializeField] private float selectionDiscRadius = 0.75f;
+      [SerializeField] private Vector3 damageNumberStart;
+
+      private int currentHealth;
       public  bool IsFriendly => isFriendly;
 
       private new Transform transform;
+      private new Collider collider;
 
       public Actor TargetActor { get; set; }
+      public ActorState CurrentState { get; private set; }
+      public int MaxHealth => maxHealth;
+      public int CurrentHealth => currentHealth;
+      public int Initiative => initiative;
+      public float SelectionDiscRadius => selectionDiscRadius;
+      public Vector3 GetDamageNumberPosition => transform.position + damageNumberStart;
+
+      private event Action<float> OnDamageTaken;
 
       private void Awake()
       {
           transform = GetComponent<Transform>();
+          collider = GetComponent<Collider>();
+          currentHealth = maxHealth;
+
+          CurrentState = ActorState.Idle;
       }
 
       private void Start()
@@ -28,15 +47,48 @@ public class Actor : MonoBehaviour
           GameManager.RemoveActor(this);
       }
 
+      public void SubscribeToOnDamageTaken(Action<float> response)
+      {
+          OnDamageTaken += response;
+      }
+
+      public void UnsubscribeToOnDamageTaken(Action<float> response)
+      {
+          OnDamageTaken -= response;
+      }
+
       public ActorCommand GetCommand()
       {
           if(TargetActor != null)
           {
-              ActorCommand command = new ActorCommand(() => Attack(TargetActor));
+              ActorCommand command = new ActorCommand(this, TargetActor, ActorCommand.ActionType.Attack);
               return command;
           }
           
           return null;
+      }
+
+      public Vector3 GetFeetPosition()
+      {
+          Vector3 position = transform.position;
+          position.y -= collider.bounds.size.y / 2;
+
+          return position;
+      }
+
+      public void TakeDamage(int damage)
+      {
+          if(damage <= 0)
+              return;
+
+          currentHealth -= damage;
+          currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
+
+          OnDamageTaken?.Invoke(damage);
+
+          DamageNumber.SpawnNewDamageNumber(damage, this);
+          
+          Debug.Log(name + " took " + damage + " damage.");
       }
 
       public void Attack(Actor target)
@@ -63,6 +115,8 @@ public class Actor : MonoBehaviour
       {
           Vector3 originalPosition = transform.position;
           
+          CurrentState = ActorState.MovingForward;
+          
           while (Vector3.Distance(transform.position,attackPosition) >= 0.0001f)
           {
               float frameMovement = moveSpeed * Time.deltaTime;
@@ -70,10 +124,13 @@ public class Actor : MonoBehaviour
               yield return null;
           }
           transform.position = attackPosition;
-          
-          Debug.Log("POW!");
 
+          CurrentState = ActorState.Attacking;
+          target.TakeDamage(weapon.damage);
+          
           yield return new WaitForSeconds(0.5f);
+
+          CurrentState = ActorState.MovingBack;
           
           while (Vector3.Distance(transform.position,originalPosition) >= 0.0001f)
           {
@@ -82,5 +139,32 @@ public class Actor : MonoBehaviour
               yield return null;
           }
           transform.position = originalPosition;
+
+          CurrentState = ActorState.Idle;
+      }
+
+      private void OnDrawGizmos()
+      {
+          if (TargetActor != null)
+          {
+              Gizmos.color = Color.red;
+              Gizmos.DrawLine(transform.position, TargetActor.transform.position);
+          }
+      }
+
+      private void OnDrawGizmosSelected()
+      {
+          Vector3 position = GetComponent<Transform>().position;
+          
+          Gizmos.color = Color.red;
+          Gizmos.DrawWireSphere(position + damageNumberStart, 0.2f);
+      }
+
+      public enum ActorState
+      {
+          Idle,
+          MovingForward,
+          MovingBack,
+          Attacking
       }
 }

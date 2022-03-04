@@ -1,16 +1,37 @@
 using System;
 
-public class ActorCommand
+public class ActorCommand : IComparable<ActorCommand>
 {
-    private Action action; 
+    public Actor Executor { get; private set; }
+    public Actor Target { get; private set; }
+    public ActionType Type { get; private set; }
 
-    public ActorCommand(Action actionToExecute)
+    public ActorCommand(Actor executor, Actor target, ActionType type)
     {
-        action = actionToExecute;
+        Executor = executor;
+        Target = target;
+        Type = type;
     }
 
     public void Execute()
     {
-        action.Invoke();
+        switch (Type)
+        {
+            case ActionType.Attack:
+                Executor.Attack(Target);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+    
+    public enum ActionType
+    {
+        Attack,
+    }
+
+    public int CompareTo(ActorCommand other)
+    {
+        return other.Executor.Initiative.CompareTo(Executor.Initiative);
     }
 }

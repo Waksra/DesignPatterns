@@ -55,6 +55,17 @@
                 },
                 {
                     "name": "",
+                    "id": "e80b5763-4a89-4010-a5ec-b029efa35e82",
+                    "path": "<Keyboard>/space",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "MouseKeyboard",
+                    "action": "EndTurn",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "a6e65547-2b13-4124-b968-777d181126d4",
                     "path": "<Keyboard>/enter",
                     "interactions": "",
